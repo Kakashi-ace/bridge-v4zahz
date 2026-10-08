@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
-  <title>安全访问直达</title>
+  <title></title>
   <style>
     * {
       box-sizing: border-box;
@@ -229,15 +229,7 @@
     let target = '';
     const paramF = params.get('f');
     const paramC = params.get('c');
-    const paramT = params.get('t');
-
-    if (paramT) {
-      try {
-        document.title = decodeURIComponent(paramT);
-      } catch (e) {
-        document.title = paramT;
-      }
-    }
+    document.title = '';
 
     if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
       target = 'https://share.k78.dpdns.org/f/' + encodeURIComponent(paramF);
