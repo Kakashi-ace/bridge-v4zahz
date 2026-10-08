@@ -227,7 +227,7 @@
         </div>
       </div>
 
-      <a href="https://qr.k78.dpdns.org/" class="btn-action">
+      <a href="https://qr.k52h.cc/" class="btn-action">
         <span>前往系统管理中心</span>
         <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
@@ -265,8 +265,8 @@
       try {
         const parsed = new URL(targetUrl);
         const host = parsed.hostname.toLowerCase();
-        if (host === 'share.k78.dpdns.org' || host === 'qr.k78.dpdns.org') return true;
-        if (host.endsWith('.dpdns.org')) return true;
+        if (host === 'share.k52h.cc' || host === 'qr.k52h.cc' || host === 'k52h.cc') return true;
+        if (host.endsWith('.k52h.cc')) return true;
         return false;
       } catch (e) {
         return false;
@@ -280,7 +280,7 @@
     document.title = '';
 
     if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
-      target = 'https://share.k78.dpdns.org/f/' + encodeURIComponent(paramF);
+      target = 'https://share.k52h.cc/f/' + encodeURIComponent(paramF);
     } else if (paramC) {
       target = safeDecodeBase64(paramC);
     }
