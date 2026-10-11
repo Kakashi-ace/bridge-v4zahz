@@ -1,4 +1,4 @@
-`<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="format-detection" content="telephone=no">
-  <title></title>
+  <title>安全访问中转</title>
   <style>
     * {
       box-sizing: border-box;
@@ -18,19 +18,69 @@
       width: 100%;
       height: 100%;
       overflow: hidden;
-      background-color: #ffffff;
-      -webkit-overflow-scrolling: touch;
+      background-color: #0c0c0e;
+      color: #f4f4f5;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     }
-    #bridgeFrame {
+    #loadingMask {
       position: fixed;
-      top: 0;
-      left: 0;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #18181b 0%, #09090b 100%);
+      z-index: 999;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
+    }
+    .spinner-ring {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      margin-bottom: 20px;
+    }
+    .spinner-ring div {
+      box-sizing: border-box;
+      display: block;
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      margin: 2px;
+      border: 3px solid #6366f1;
+      border-radius: 50%;
+      animation: spin 1.1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      border-color: #6366f1 transparent transparent transparent;
+    }
+    .spinner-ring div:nth-child(1) { animation-delay: -0.45s; }
+    .spinner-ring div:nth-child(2) { animation-delay: -0.3s; }
+    .spinner-ring div:nth-child(3) { animation-delay: -0.15s; }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: #a1a1aa;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    #mainFrame {
+      position: fixed;
+      inset: 0;
       width: 100%;
       height: 100%;
       border: none;
-      z-index: 100;
-      background: #ffffff;
+      outline: none;
+      z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      background-color: #ffffff;
+      -webkit-overflow-scrolling: touch;
     }
     #fallbackCard {
       display: none;
@@ -38,7 +88,7 @@
       inset: 0;
       overflow-y: auto;
       padding: 24px;
-      z-index: 200;
+      z-index: 20;
       background: #09090b;
       align-items: center;
       justify-content: center;
@@ -70,56 +120,30 @@
       color: #ffffff;
       margin-bottom: 8px;
     }
-    .card-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 12px;
-      border-radius: 9999px;
-      font-size: 11px;
-      font-weight: 600;
-      margin-bottom: 16px;
-      background: rgba(16, 185, 129, 0.15);
-      color: #34d399;
-      border: 1px solid rgba(16, 185, 129, 0.3);
-    }
-    .card-badge.error {
-      background: rgba(244, 63, 94, 0.15);
-      color: #fb7185;
-      border-color: rgba(244, 63, 94, 0.3);
-    }
-    .badge-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
-      background: currentColor;
-    }
     .card-desc {
       font-size: 13px;
       color: #a1a1aa;
       line-height: 1.6;
       margin-bottom: 24px;
     }
-    .status-panel {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 14px 16px;
-      margin-bottom: 24px;
-      text-align: left;
-      font-size: 12px;
-    }
-    .status-item {
+    .input-group {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 4px 0;
-      color: #71717a;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
     }
-    .status-item span:last-child {
-      color: #e4e4e7;
-      font-weight: 500;
-      font-family: monospace;
+    .url-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #121215;
+      color: #f4f4f5;
+      font-size: 13px;
+      outline: none;
+    }
+    .url-input:focus {
+      border-color: #6366f1;
     }
     .btn-action {
       display: inline-flex;
@@ -136,107 +160,52 @@
       border: none;
       cursor: pointer;
       text-decoration: none;
-      transition: background 0.2s, transform 0.1s;
+      transition: background 0.2s;
     }
     .btn-action:hover {
       background: #4338ca;
     }
-    .btn-action:active {
-      transform: scale(0.98);
-    }
-    #loadingContainer {
-      position: fixed;
-      inset: 0;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding-bottom: 15vh;
-      background: #ffffff;
-      z-index: 150;
-      transition: opacity 0.25s ease;
-    }
-    .loader {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      gap: 0.85rem;
-    }
-    .icon {
-      height: 3rem;
-      width: 3rem;
-      animation: spin 1s linear infinite;
-      stroke: #4f46e5;
-    }
-    .loading-text {
-      font-size: 0.875rem;
-      line-height: 1.25rem;
-      font-weight: 500;
-      color: #64748b;
-      letter-spacing: 0.05em;
-    }
-    @keyframes spin {
-      to {
-        transform: rotate(360deg);
-      }
+    .result-box {
+      margin-top: 18px;
+      padding: 12px;
+      background: #121215;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+      color: #818cf8;
+      word-break: break-all;
+      display: none;
     }
   </style>
 </head>
 <body>
 
-  <div id="loadingContainer">
-    <div aria-label="加载中..." role="status" class="loader">
-      <svg class="icon" viewBox="0 0 256 256">
-        <line x1="128" y1="32" x2="128" y2="64" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="195.9" y1="60.1" x2="173.3" y2="82.7" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="224" y1="128" x2="192" y2="128" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="195.9" y1="195.9" x2="173.3" y2="173.3" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="128" y1="224" x2="128" y2="192" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="60.1" y1="195.9" x2="82.7" y2="173.3" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="32" y1="128" x2="64" y2="128" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-        <line x1="60.1" y1="60.1" x2="82.7" y2="82.7" stroke-linecap="round" stroke-linejoin="round" stroke-width="24"></line>
-      </svg>
-      <span class="loading-text">加载中...</span>
+  <div id="loadingMask">
+    <div class="spinner-ring">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
     </div>
+    <div class="loading-text">正在安全载入页面...</div>
   </div>
 
-  <iframe id="bridgeFrame" style="display:none;" allow="fullscreen; clipboard-read; clipboard-write; autoplay; camera; microphone"></iframe>
+  <iframe id="mainFrame" allow="clipboard-read; clipboard-write; fullscreen; accelerometer; autoplay" sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation allow-downloads"></iframe>
 
   <div id="fallbackCard">
     <div class="card-box">
-      <div class="card-icon" id="cardIcon">
+      <div class="card-icon">
         <svg style="width: 28px; height: 28px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       </div>
-      <div id="cardBadge" class="card-badge">
-        <span class="badge-dot"></span>
-        <span id="badgeText">安全网桥节点运行中</span>
+      <h2 class="card-title">GitHub 微信安全直开网桥</h2>
+      <p class="card-desc">本服务由 GitHub Pages 提供高信誉白名单托管。输入需要防封或直开的目标链接，生成加密网桥地址。</p>
+      <div class="input-group">
+        <input type="text" id="targetInput" class="url-input" placeholder="输入完整网址，如 https://...">
+        <button type="button" id="genBtn" class="btn-action">生成防封网桥链接</button>
       </div>
-      <h2 id="cardTitle" class="card-title">私有安全分发中转节点</h2>
-      <p id="cardDesc" class="card-desc">本节点受 Cloudflare Edge 实时鉴权与安全防护保护。仅限受信系统内部调度调用，未开放公开配置接口。</p>
-      
-      <div class="status-panel">
-        <div class="status-item">
-          <span>节点类型</span>
-          <span>Security Transit Node</span>
-        </div>
-        <div class="status-item">
-          <span>目标鉴权</span>
-          <span>Strict Whitelist Active</span>
-        </div>
-        <div class="status-item">
-          <span>公开配置</span>
-          <span style="color:#ef4444;">已禁用 (Forbidden)</span>
-        </div>
-      </div>
-
-      <a href="https://qr.k52h.cc/" class="btn-action">
-        <span>前往系统管理中心</span>
-        <svg style="width: 16px; height: 16px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3" />
-        </svg>
-      </a>
+      <div id="resultBox" class="result-box"></div>
     </div>
   </div>
 
@@ -264,119 +233,118 @@
       }
     }
 
-    function isAuthorizedTarget(targetUrl) {
-      if (!targetUrl || typeof targetUrl !== 'string') return false;
+    function safeEncodeBase64(str) {
       try {
-        const parsed = new URL(targetUrl);
-        const host = parsed.hostname.toLowerCase();
-        if (host === 'qr.k52h.cc' || host === 'qr-file-hub.pages.dev') return true;
-        return false;
+        const bytes = new TextEncoder().encode(str);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
       } catch (e) {
-        return false;
+        return btoa(unescape(encodeURIComponent(str)));
       }
     }
 
     const params = new URLSearchParams(window.location.search);
     let target = '';
-    const paramF = params.get('f');
+
     const paramC = params.get('c');
-    document.title = '';
+    const paramU = params.get('u') || params.get('url');
+    const paramF = params.get('f');
 
-    const bridgeFrame = document.getElementById('bridgeFrame');
-    const fallbackCard = document.getElementById('fallbackCard');
-    const loadingContainer = document.getElementById('loadingContainer');
-
-    document.title = '安全访问中...';
-
-    function dismissLoader() {
-      if (loadingContainer) {
-        loadingContainer.style.opacity = '0';
-        setTimeout(function() {
-          loadingContainer.style.display = 'none';
-        }, 100);
-      }
-    }
-
-    bridgeFrame.onload = dismissLoader;
-    setTimeout(dismissLoader, 350);
-
-    function renderFinalTarget(dest) {
-      if (!dest) {
-        dismissLoader();
-        fallbackCard.style.display = 'flex';
-        return;
-      }
-      dismissLoader();
-      const ua = navigator.userAgent.toLowerCase();
-      const isWeChat = ua.includes('micromessenger');
-      if (isWeChat) {
-        bridgeFrame.src = dest;
-        bridgeFrame.style.display = 'block';
+    if (paramC) {
+      target = safeDecodeBase64(paramC);
+    } else if (paramU) {
+      if (paramU.startsWith('http://') || paramU.startsWith('https://')) {
+        target = paramU;
       } else {
-        window.location.replace(dest);
+        const decoded = safeDecodeBase64(paramU);
+        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+          target = decoded;
+        } else {
+          try {
+            const uriDecoded = decodeURIComponent(paramU);
+            if (uriDecoded.startsWith('http://') || uriDecoded.startsWith('https://')) {
+              target = uriDecoded;
+            }
+          } catch (e) {}
+        }
       }
     }
 
-    function safeDecodeUrl(str) {
-      if (!str) return '';
-      try {
-        const clean = str.replace(/-/g, '+').replace(/_/g, '/');
-        const binary = atob(clean);
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) {
-          bytes[i] = binary.charCodeAt(i);
-        }
-        const dec = new TextDecoder('utf-8').decode(bytes);
-        if (/^https?:\/\//i.test(dec)) return dec;
-        const uriDec = decodeURIComponent(dec);
-        if (/^https?:\/\//i.test(uriDec)) return uriDec;
-      } catch (e) {}
-      try {
-        const plain = decodeURIComponent(str);
-        if (/^https?:\/\//i.test(plain)) return plain;
-      } catch (e) {}
-      return '';
+    const loadingMask = document.getElementById('loadingMask');
+    const mainFrame = document.getElementById('mainFrame');
+    const fallbackCard = document.getElementById('fallbackCard');
+
+    function loadTargetInFrame(dest) {
+      if (!dest || (!dest.startsWith('http://') && !dest.startsWith('https://'))) return;
+      mainFrame.src = dest;
+      let revealed = false;
+      function showFrame() {
+        if (revealed) return;
+        revealed = true;
+        mainFrame.style.opacity = '1';
+        setTimeout(() => {
+          loadingMask.style.opacity = '0';
+          loadingMask.style.visibility = 'hidden';
+        }, 120);
+      }
+      mainFrame.onload = showFrame;
+      setTimeout(showFrame, 2000);
     }
 
-    const paramU = params.get('u');
-    const syncTarget = safeDecodeUrl(paramU) || safeDecodeUrl(paramC);
-
-    if (syncTarget) {
-      renderFinalTarget(syncTarget);
-    } else if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
+    if (target && (target.startsWith('http://') || target.startsWith('https://'))) {
+      loadTargetInFrame(target);
+    } else if (paramF) {
       let resolved = false;
-      const safetyTimer = setTimeout(function() {
+      const safetyFallback = setTimeout(() => {
         if (!resolved) {
           resolved = true;
-          renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+          loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
         }
-      }, 1200);
+      }, 1500);
 
       fetch('https://qr-file-hub-backend.onrender.com/api/share/' + encodeURIComponent(paramF))
-        .then(function(res) { return res.json(); })
-        .then(function(data) {
+        .then(res => res.json())
+        .then(data => {
           if (!resolved) {
             resolved = true;
-            clearTimeout(safetyTimer);
+            clearTimeout(safetyFallback);
             if (data && data.mode === 'url' && data.target_url) {
-              renderFinalTarget(data.target_url);
+              loadTargetInFrame(data.target_url);
             } else {
-              renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+              loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
             }
           }
         })
-        .catch(function() {
+        .catch(() => {
           if (!resolved) {
             resolved = true;
-            clearTimeout(safetyTimer);
-            renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+            clearTimeout(safetyFallback);
+            loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
           }
         });
     } else {
-      dismissLoader();
+      loadingMask.style.display = 'none';
       fallbackCard.style.display = 'flex';
+
+      const targetInput = document.getElementById('targetInput');
+      const genBtn = document.getElementById('genBtn');
+      const resultBox = document.getElementById('resultBox');
+
+      genBtn.addEventListener('click', () => {
+        const url = targetInput.value.trim();
+        if (!url || !url.startsWith('http')) {
+          alert('请输入以 http:// 或 https:// 开头的有效网址');
+          return;
+        }
+        const b64 = safeEncodeBase64(url);
+        const bridgeUrl = window.location.origin + window.location.pathname + '?c=' + b64;
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = '<div style="margin-bottom:6px;color:#a1a1aa;">网桥生成成功（点击链接直达）：</div><a href="' + bridgeUrl + '" style="color:#818cf8;word-break:break-all;">' + bridgeUrl + '</a>';
+      });
     }
   </script>
 </body>
 </html>
-`
