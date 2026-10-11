@@ -29,28 +29,27 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      background-color: #ffffff;
+      background: #ffffff;
       z-index: 999;
-      transition: opacity 0.25s ease, visibility 0.25s ease;
-      pointer-events: none;
+      transition: opacity 0.35s ease, visibility 0.35s ease;
     }
     .spinner-ring {
       position: relative;
-      width: 48px;
-      height: 48px;
-      margin-bottom: 16px;
+      width: 52px;
+      height: 52px;
+      margin-bottom: 20px;
     }
     .spinner-ring div {
       box-sizing: border-box;
       display: block;
       position: absolute;
-      width: 44px;
-      height: 44px;
+      width: 48px;
+      height: 48px;
       margin: 2px;
-      border: 3px solid #4f46e5;
+      border: 3px solid #6366f1;
       border-radius: 50%;
-      animation: spin 1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
-      border-color: #4f46e5 transparent transparent transparent;
+      animation: spin 1.1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      border-color: #6366f1 transparent transparent transparent;
     }
     .spinner-ring div:nth-child(1) { animation-delay: -0.45s; }
     .spinner-ring div:nth-child(2) { animation-delay: -0.3s; }
@@ -78,6 +77,8 @@
       border: none;
       outline: none;
       z-index: 10;
+      opacity: 0;
+      transition: opacity 0.3s ease;
       background-color: #ffffff;
       -webkit-overflow-scrolling: touch;
     }
@@ -106,8 +107,8 @@
       width: 56px;
       height: 56px;
       border-radius: 16px;
-      background: #eef2ff;
-      color: #4f46e5;
+      background: rgba(99, 102, 241, 0.1);
+      color: #6366f1;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -142,7 +143,7 @@
       outline: none;
     }
     .url-input:focus {
-      border-color: #4f46e5;
+      border-color: #6366f1;
       background: #ffffff;
     }
     .btn-action {
@@ -190,7 +191,7 @@
     <div class="loading-text">正在安全载入页面...</div>
   </div>
 
-  <iframe id="mainFrame" allow="clipboard-read; clipboard-write; fullscreen; accelerometer; autoplay"></iframe>
+  <iframe id="mainFrame" allow="clipboard-read; clipboard-write; fullscreen; accelerometer; autoplay" sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation allow-downloads"></iframe>
 
   <div id="fallbackCard">
     <div class="card-box">
@@ -259,73 +260,29 @@
     if (paramC) {
       target = safeDecodeBase64(paramC);
     } else if (paramU) {
-      if (paramU.startsWith('http://') || paramU.startsWith('https://')) {
-        target = paramU;
-      } else {
-        const decoded = safeDecodeBase64(paramU);
-        if (decoded && (decoded.startsWith('http://') || decoded.startsWith('https://'))) {
-          target = decoded;
-        } else {
-          try {
-            const dec = decodeURIComponent(paramU);
-            if (dec.startsWith('http')) target = dec;
-          } catch (e) {}
-        }
-      }
+      target = paramU.startsWith('http') ? paramU : decodeURIComponent(paramU);
+    } else if (paramF) {
+      target = 'https://qr.k52h.cc/s/' + encodeURIComponent(paramF);
     }
 
     const loadingMask = document.getElementById('loadingMask');
     const mainFrame = document.getElementById('mainFrame');
     const fallbackCard = document.getElementById('fallbackCard');
 
-    function dismissMask() {
-      if (!loadingMask) return;
-      loadingMask.style.opacity = '0';
-      setTimeout(() => {
-        loadingMask.style.display = 'none';
-        loadingMask.style.visibility = 'hidden';
-      }, 250);
-    }
-
-    function applyTarget(dest) {
-      if (!dest || (!dest.startsWith('http://') && !dest.startsWith('https://'))) {
-        loadingMask.style.display = 'none';
-        fallbackCard.style.display = 'flex';
-        return;
-      }
-      mainFrame.src = dest;
-      mainFrame.onload = dismissMask;
-      setTimeout(dismissMask, 800);
-    }
-
     if (target && (target.startsWith('http://') || target.startsWith('https://'))) {
-      applyTarget(target);
-    } else if (paramF) {
-      let resolved = false;
-      const safetyFallback = setTimeout(() => {
-        if (!resolved) {
-          resolved = true;
-          applyTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
-        }
-      }, 1000);
-
-      fetch('https://qr-file-hub-backend.onrender.com/api/share/' + encodeURIComponent(paramF))
-        .then(r => r.json())
-        .then(d => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(safetyFallback);
-            if (d && d.target_url) applyTarget(d.target_url);
-            else applyTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
-          }
-        })
-        .catch(() => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(safetyFallback);
-            applyTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
-          }
-        });
+      mainFrame.src = target;
+      mainFrame.onload = function() {
+        mainFrame.style.opacity = '1';
+        setTimeout(() => {
+          loadingMask.style.opacity = '0';
+          loadingMask.style.visibility = 'hidden';
+        }, 150);
+      };
+      setTimeout(() => {
+        mainFrame.style.opacity = '1';
+        loadingMask.style.opacity = '0';
+        loadingMask.style.visibility = 'hidden';
+      }, 2500);
     } else {
       loadingMask.style.display = 'none';
       fallbackCard.style.display = 'flex';
