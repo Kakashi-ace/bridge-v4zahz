@@ -31,7 +31,8 @@
       justify-content: center;
       background: radial-gradient(circle at center, #18181b 0%, #09090b 100%);
       z-index: 999;
-      transition: opacity 0.35s ease, visibility 0.35s ease;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      pointer-events: none;
     }
     .spinner-ring {
       position: relative;
@@ -77,8 +78,6 @@
       border: none;
       outline: none;
       z-index: 10;
-      opacity: 0;
-      transition: opacity 0.3s ease;
       background-color: #ffffff;
       -webkit-overflow-scrolling: touch;
     }
@@ -190,7 +189,7 @@
     <div class="loading-text">正在安全载入页面...</div>
   </div>
 
-  <iframe id="mainFrame" allow="clipboard-read; clipboard-write; fullscreen; accelerometer; autoplay" sandbox="allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-same-origin allow-scripts allow-top-navigation-by-user-activation allow-downloads"></iframe>
+  <iframe id="mainFrame" allow="clipboard-read; clipboard-write; fullscreen; accelerometer; autoplay"></iframe>
 
   <div id="fallbackCard">
     <div class="card-box">
@@ -199,8 +198,8 @@
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
         </svg>
       </div>
-      <h2 class="card-title">GitHub 微信安全直开网桥</h2>
-      <p class="card-desc">本服务由 GitHub Pages 提供高信誉白名单托管。输入需要防封或直开的目标链接，生成加密网桥地址。</p>
+      <h2 class="card-title">安全直开网桥</h2>
+      <p class="card-desc">本服务提供高信誉白名单中转。输入需要防封或直开的目标链接，生成加密网桥地址。</p>
       <div class="input-group">
         <input type="text" id="targetInput" class="url-input" placeholder="输入完整网址，如 https://...">
         <button type="button" id="genBtn" class="btn-action">生成防封网桥链接</button>
@@ -213,7 +212,10 @@
     function safeDecodeBase64(str) {
       if (!str) return '';
       try {
-        const clean = str.replace(/-/g, '+').replace(/_/g, '/');
+        let clean = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (clean.length % 4 !== 0) {
+          clean += '=';
+        }
         const binary = atob(clean);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
@@ -222,7 +224,9 @@
         return new TextDecoder('utf-8').decode(bytes);
       } catch (err) {
         try {
-          return decodeURIComponent(escape(atob(str)));
+          let clean2 = str;
+          while (clean2.length % 4 !== 0) clean2 += '=';
+          return decodeURIComponent(escape(atob(clean2)));
         } catch (e) {
           try {
             return atob(str);
@@ -277,21 +281,20 @@
     const mainFrame = document.getElementById('mainFrame');
     const fallbackCard = document.getElementById('fallbackCard');
 
+    function dismissMask() {
+      if (!loadingMask) return;
+      loadingMask.style.opacity = '0';
+      setTimeout(() => {
+        loadingMask.style.display = 'none';
+        loadingMask.style.visibility = 'hidden';
+      }, 300);
+    }
+
     function loadTargetInFrame(dest) {
       if (!dest || (!dest.startsWith('http://') && !dest.startsWith('https://'))) return;
       mainFrame.src = dest;
-      let revealed = false;
-      function showFrame() {
-        if (revealed) return;
-        revealed = true;
-        mainFrame.style.opacity = '1';
-        setTimeout(() => {
-          loadingMask.style.opacity = '0';
-          loadingMask.style.visibility = 'hidden';
-        }, 120);
-      }
-      mainFrame.onload = showFrame;
-      setTimeout(showFrame, 2000);
+      mainFrame.onload = dismissMask;
+      setTimeout(dismissMask, 800);
     }
 
     if (target && (target.startsWith('http://') || target.startsWith('https://'))) {
@@ -303,7 +306,7 @@
           resolved = true;
           loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
         }
-      }, 1500);
+      }, 1200);
 
       fetch('https://qr-file-hub-backend.onrender.com/api/share/' + encodeURIComponent(paramF))
         .then(res => res.json())
