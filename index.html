@@ -293,12 +293,12 @@
         loadingContainer.style.opacity = '0';
         setTimeout(function() {
           loadingContainer.style.display = 'none';
-        }, 150);
+        }, 100);
       }
     }
 
     bridgeFrame.onload = dismissLoader;
-    setTimeout(dismissLoader, 400);
+    setTimeout(dismissLoader, 350);
 
     function renderFinalTarget(dest) {
       if (!dest) {
@@ -317,32 +317,61 @@
       }
     }
 
-    if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
+    function safeDecodeUrl(str) {
+      if (!str) return '';
+      try {
+        const clean = str.replace(/-/g, '+').replace(/_/g, '/');
+        const binary = atob(clean);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        const dec = new TextDecoder('utf-8').decode(bytes);
+        if (/^https?:\/\//i.test(dec)) return dec;
+        const uriDec = decodeURIComponent(dec);
+        if (/^https?:\/\//i.test(uriDec)) return uriDec;
+      } catch (e) {}
+      try {
+        const plain = decodeURIComponent(str);
+        if (/^https?:\/\//i.test(plain)) return plain;
+      } catch (e) {}
+      return '';
+    }
+
+    const paramU = params.get('u');
+    const syncTarget = safeDecodeUrl(paramU) || safeDecodeUrl(paramC);
+
+    if (syncTarget) {
+      renderFinalTarget(syncTarget);
+    } else if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
+      let resolved = false;
+      const safetyTimer = setTimeout(function() {
+        if (!resolved) {
+          resolved = true;
+          renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+        }
+      }, 1200);
+
       fetch('https://qr-file-hub-backend.onrender.com/api/share/' + encodeURIComponent(paramF))
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          if (data && data.mode === 'url' && data.target_url) {
-            renderFinalTarget(data.target_url);
-          } else {
-            renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(safetyTimer);
+            if (data && data.mode === 'url' && data.target_url) {
+              renderFinalTarget(data.target_url);
+            } else {
+              renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+            }
           }
         })
         .catch(function() {
-          renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(safetyTimer);
+            renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+          }
         });
-    } else if (paramC) {
-      target = safeDecodeBase64(paramC);
-      if (target && typeof target === 'string') {
-        target = target.replace(/share\.k78\.dpdns\.org\/f\//g, 'qr.k52h.cc/s/')
-                       .replace(/share\.k52h\.cc\/f\//g, 'qr.k52h.cc/s/')
-                       .replace(/qr\.k78\.dpdns\.org/g, 'qr.k52h.cc');
-      }
-      if (target && isAuthorizedTarget(target)) {
-        renderFinalTarget(target);
-      } else {
-        dismissLoader();
-        fallbackCard.style.display = 'flex';
-      }
     } else {
       dismissLoader();
       fallbackCard.style.display = 'flex';
