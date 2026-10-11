@@ -286,16 +286,19 @@
     const fallbackCard = document.getElementById('fallbackCard');
     const loadingContainer = document.getElementById('loadingContainer');
 
+    document.title = '安全访问中...';
+
     function dismissLoader() {
       if (loadingContainer) {
         loadingContainer.style.opacity = '0';
         setTimeout(function() {
           loadingContainer.style.display = 'none';
-        }, 250);
+        }, 150);
       }
     }
 
     bridgeFrame.onload = dismissLoader;
+    setTimeout(dismissLoader, 400);
 
     function renderFinalTarget(dest) {
       if (!dest) {
@@ -303,9 +306,10 @@
         fallbackCard.style.display = 'flex';
         return;
       }
+      dismissLoader();
       const ua = navigator.userAgent.toLowerCase();
-      const isTencent = ua.includes('micromessenger') || ua.includes('qq/');
-      if (isTencent) {
+      const isWeChat = ua.includes('micromessenger');
+      if (isWeChat) {
         bridgeFrame.src = dest;
         bridgeFrame.style.display = 'block';
       } else {
