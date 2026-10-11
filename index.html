@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+`<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
@@ -200,7 +200,7 @@
     </div>
   </div>
 
-  <iframe id="bridgeFrame" style="display:none;" allow="fullscreen; clipboard-write; encrypted-media; camera; microphone; geolocation" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"></iframe>
+  <iframe id="bridgeFrame" style="display:none;" allow="fullscreen; clipboard-read; clipboard-write; autoplay; camera; microphone"></iframe>
 
   <div id="fallbackCard">
     <div class="card-box">
@@ -269,8 +269,7 @@
       try {
         const parsed = new URL(targetUrl);
         const host = parsed.hostname.toLowerCase();
-        if (host === 'share.k52h.cc' || host === 'qr.k52h.cc' || host === 'k52h.cc') return true;
-        if (host.endsWith('.k52h.cc')) return true;
+        if (host === 'qr.k52h.cc' || host === 'qr-file-hub.pages.dev') return true;
         return false;
       } catch (e) {
         return false;
@@ -282,12 +281,6 @@
     const paramF = params.get('f');
     const paramC = params.get('c');
     document.title = '';
-
-    if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
-      target = 'https://share.k52h.cc/f/' + encodeURIComponent(paramF);
-    } else if (paramC) {
-      target = safeDecodeBase64(paramC);
-    }
 
     const bridgeFrame = document.getElementById('bridgeFrame');
     const fallbackCard = document.getElementById('fallbackCard');
@@ -304,26 +297,53 @@
 
     bridgeFrame.onload = dismissLoader;
 
-    if (target && isAuthorizedTarget(target)) {
+    function renderFinalTarget(dest) {
+      if (!dest) {
+        dismissLoader();
+        fallbackCard.style.display = 'flex';
+        return;
+      }
       const ua = navigator.userAgent.toLowerCase();
       const isTencent = ua.includes('micromessenger') || ua.includes('qq/');
-
       if (isTencent) {
-        bridgeFrame.src = target.includes('?') ? (target + '&embed=1') : (target + '?embed=1');
+        bridgeFrame.src = dest;
         bridgeFrame.style.display = 'block';
       } else {
-        window.location.replace(target);
+        window.location.replace(dest);
+      }
+    }
+
+    if (paramF && /^[a-zA-Z0-9_-]{6,16}$/.test(paramF)) {
+      fetch('https://qr-file-hub-backend.onrender.com/api/share/' + encodeURIComponent(paramF))
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          if (data && data.mode === 'url' && data.target_url) {
+            renderFinalTarget(data.target_url);
+          } else {
+            renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+          }
+        })
+        .catch(function() {
+          renderFinalTarget('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+        });
+    } else if (paramC) {
+      target = safeDecodeBase64(paramC);
+      if (target && typeof target === 'string') {
+        target = target.replace(/share\.k78\.dpdns\.org\/f\//g, 'qr.k52h.cc/s/')
+                       .replace(/share\.k52h\.cc\/f\//g, 'qr.k52h.cc/s/')
+                       .replace(/qr\.k78\.dpdns\.org/g, 'qr.k52h.cc');
+      }
+      if (target && isAuthorizedTarget(target)) {
+        renderFinalTarget(target);
+      } else {
+        dismissLoader();
+        fallbackCard.style.display = 'flex';
       }
     } else {
       dismissLoader();
       fallbackCard.style.display = 'flex';
-      if (target && !isAuthorizedTarget(target)) {
-        document.getElementById('cardBadge').className = 'card-badge error';
-        document.getElementById('badgeText').textContent = '未授权的目标中转请求';
-        document.getElementById('cardTitle').textContent = '403 访问已被拦截';
-        document.getElementById('cardDesc').textContent = '请求的目标网址未通过系统白名单合法性校验。本网桥禁止中转未受信的外部地址。';
-      }
     }
   </script>
 </body>
 </html>
+`
