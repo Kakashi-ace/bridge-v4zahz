@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="format-detection" content="telephone=no">
+  <title>安全访问中转</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0c0c0e;
+      color: #f4f4f5;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    }
+    #loadingMask {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: radial-gradient(circle at center, #18181b 0%, #09090b 100%);
+      z-index: 999;
+      transition: opacity 0.3s ease, visibility 0.3s ease;
+      pointer-events: none;
+    }
+    .spinner-ring {
+      position: relative;
+      width: 52px;
+      height: 52px;
+      margin-bottom: 20px;
+    }
+    .spinner-ring div {
+      box-sizing: border-box;
+      display: block;
+      position: absolute;
+      width: 48px;
+      height: 48px;
+      margin: 2px;
+      border: 3px solid #6366f1;
+      border-radius: 50%;
+      animation: spin 1.1s cubic-bezier(0.5, 0, 0.5, 1) infinite;
+      border-color: #6366f1 transparent transparent transparent;
+    }
+    .spinner-ring div:nth-child(1) { animation-delay: -0.45s; }
+    .spinner-ring div:nth-child(2) { animation-delay: -0.3s; }
+    .spinner-ring div:nth-child(3) { animation-delay: -0.15s; }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .loading-text {
+      font-size: 13px;
+      font-weight: 500;
+      letter-spacing: 0.05em;
+      color: #a1a1aa;
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 0.6; }
+      50% { opacity: 1; }
+    }
+    #mainFrame {
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      outline: none;
+      z-index: 10;
+      background-color: #ffffff;
+      -webkit-overflow-scrolling: touch;
+    }
+    #fallbackCard {
+      display: none;
+      position: fixed;
+      inset: 0;
+      overflow-y: auto;
+      padding: 24px;
+      z-index: 20;
+      background: #09090b;
+      align-items: center;
+      justify-content: center;
+    }
+    .card-box {
+      max-width: 440px;
+      width: 100%;
+      background: #18181b;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 20px;
+      padding: 32px 24px;
+      text-align: center;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+    }
+    .card-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 16px;
+      background: rgba(99, 102, 241, 0.15);
+      color: #818cf8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+    }
+    .card-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 8px;
+    }
+    .card-desc {
+      font-size: 13px;
+      color: #a1a1aa;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .input-group {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .url-input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      background: #121215;
+      color: #f4f4f5;
+      font-size: 13px;
+      outline: none;
+    }
+    .url-input:focus {
+      border-color: #6366f1;
+    }
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 20px;
+      background: #4f46e5;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      transition: background 0.2s;
+    }
+    .btn-action:hover {
+      background: #4338ca;
+    }
+    .result-box {
+      margin-top: 18px;
+      padding: 12px;
+      background: #121215;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 11px;
+      color: #818cf8;
+      word-break: break-all;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="loadingMask">
+    <div class="spinner-ring">
+      <div></div>
+      <div></div>
+      <div></div>
+      <div></div>
+    </div>
+    <div class="loading-text">正在安全载入页面...</div>
+  </div>
+
+  <iframe id="mainFrame" allow="clipboard-read; clipboard-write; fullscreen; accelerometer; autoplay"></iframe>
+
+  <div id="fallbackCard">
+    <div class="card-box">
+      <div class="card-icon">
+        <svg style="width: 28px; height: 28px;" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <h2 class="card-title">安全直开网桥</h2>
+      <p class="card-desc">本服务提供高信誉白名单中转。输入需要防封或直开的目标链接，生成加密网桥地址。</p>
+      <div class="input-group">
+        <input type="text" id="targetInput" class="url-input" placeholder="输入完整网址，如 https://...">
+        <button type="button" id="genBtn" class="btn-action">生成防封网桥链接</button>
+      </div>
+      <div id="resultBox" class="result-box"></div>
+    </div>
+  </div>
+
+  <script>
+    function safeDecodeBase64(str) {
+      if (!str) return '';
+      try {
+        let clean = str.replace(/-/g, '+').replace(/_/g, '/');
+        while (clean.length % 4 !== 0) {
+          clean += '=';
+        }
+        const binary = atob(clean);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+          bytes[i] = binary.charCodeAt(i);
+        }
+        return new TextDecoder('utf-8').decode(bytes);
+      } catch (err) {
+        try {
+          let clean2 = str;
+          while (clean2.length % 4 !== 0) clean2 += '=';
+          return decodeURIComponent(escape(atob(clean2)));
+        } catch (e) {
+          try {
+            return atob(str);
+          } catch (e2) {
+            return decodeURIComponent(str);
+          }
+        }
+      }
+    }
+
+    function safeEncodeBase64(str) {
+      try {
+        const bytes = new TextEncoder().encode(str);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
+        }
+        return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+      } catch (e) {
+        return btoa(unescape(encodeURIComponent(str)));
+      }
+    }
+
+    const params = new URLSearchParams(window.location.search);
+    let target = '';
+
+    const paramC = params.get('c');
+    const paramU = params.get('u') || params.get('url');
+    const paramF = params.get('f');
+
+    if (paramC) {
+      target = safeDecodeBase64(paramC);
+    } else if (paramU) {
+      if (paramU.startsWith('http://') || paramU.startsWith('https://')) {
+        target = paramU;
+      } else {
+        const decoded = safeDecodeBase64(paramU);
+        if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
+          target = decoded;
+        } else {
+          try {
+            const uriDecoded = decodeURIComponent(paramU);
+            if (uriDecoded.startsWith('http://') || uriDecoded.startsWith('https://')) {
+              target = uriDecoded;
+            }
+          } catch (e) {}
+        }
+      }
+    }
+
+    const loadingMask = document.getElementById('loadingMask');
+    const mainFrame = document.getElementById('mainFrame');
+    const fallbackCard = document.getElementById('fallbackCard');
+
+    function dismissMask() {
+      if (!loadingMask) return;
+      loadingMask.style.opacity = '0';
+      setTimeout(() => {
+        loadingMask.style.display = 'none';
+        loadingMask.style.visibility = 'hidden';
+      }, 300);
+    }
+
+    function loadTargetInFrame(dest) {
+      if (!dest || (!dest.startsWith('http://') && !dest.startsWith('https://'))) return;
+      mainFrame.src = dest;
+      mainFrame.onload = dismissMask;
+      setTimeout(dismissMask, 800);
+    }
+
+    if (target && (target.startsWith('http://') || target.startsWith('https://'))) {
+      loadTargetInFrame(target);
+    } else if (paramF) {
+      let resolved = false;
+      const safetyFallback = setTimeout(() => {
+        if (!resolved) {
+          resolved = true;
+          loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+        }
+      }, 1200);
+
+      fetch('https://qr-file-hub-backend.onrender.com/api/share/' + encodeURIComponent(paramF))
+        .then(res => res.json())
+        .then(data => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(safetyFallback);
+            if (data && data.mode === 'url' && data.target_url) {
+              loadTargetInFrame(data.target_url);
+            } else {
+              loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+            }
+          }
+        })
+        .catch(() => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(safetyFallback);
+            loadTargetInFrame('https://qr.k52h.cc/s/' + encodeURIComponent(paramF));
+          }
+        });
+    } else {
+      loadingMask.style.display = 'none';
+      fallbackCard.style.display = 'flex';
+
+      const targetInput = document.getElementById('targetInput');
+      const genBtn = document.getElementById('genBtn');
+      const resultBox = document.getElementById('resultBox');
+
+      genBtn.addEventListener('click', () => {
+        const url = targetInput.value.trim();
+        if (!url || !url.startsWith('http')) {
+          alert('请输入以 http:// 或 https:// 开头的有效网址');
+          return;
+        }
+        const b64 = safeEncodeBase64(url);
+        const bridgeUrl = window.location.origin + window.location.pathname + '?c=' + b64;
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = '<div style="margin-bottom:6px;color:#a1a1aa;">网桥生成成功（点击链接直达）：</div><a href="' + bridgeUrl + '" style="color:#818cf8;word-break:break-all;">' + bridgeUrl + '</a>';
+      });
+    }
+  </script>
+</body>
+</html>
